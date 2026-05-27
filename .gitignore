@@ -1,0 +1,18 @@
+# env / secrets
+deploy/compose/.env
+*.env.local
+
+# data
+*.db
+/data/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# local workspace (not published)
+A_R:Workspace/
+
+# build
+agent/kosiro-agent

@@ -1,0 +1,21 @@
+name: Kosiro Panel CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  agent:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22"
+      - run: go mod tidy
+      - run: go test ./...
+      - run: go build -o /tmp/kosiro-agent ./cmd/agent

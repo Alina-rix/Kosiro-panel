@@ -1,0 +1,87 @@
+services:
+  kosiro-agent:
+    build:
+      context: ../../agent
+      dockerfile: Dockerfile
+    container_name: kosiro-agent
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    ports:
+      - "${KOSIRO_PORT:-8443}:8443"
+    volumes:
+      - kosiro-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./:/compose:ro
+    environment:
+      KOSIRO_HTTP_ADDR: ":8443"
+      KOSIRO_DATA_DIR: /data
+      KOSIRO_ADMIN_TOKEN: ${KOSIRO_ADMIN_TOKEN}
+      KOSIRO_JWT_SECRET: ${KOSIRO_JWT_SECRET:-}
+      KOSIRO_INSTALL_SECRET: ${KOSIRO_INSTALL_SECRET:-}
+      KOSIRO_PUBLIC_HOST: ${KOSIRO_PUBLIC_HOST:-127.0.0.1}
+      KOSIRO_XRAY_API: http://kosiro-xray:10085
+      KOSIRO_COMPOSE_DIR: /compose
+      KOSIRO_TLS_CERT: ${KOSIRO_TLS_CERT:-}
+      KOSIRO_TLS_KEY: ${KOSIRO_TLS_KEY:-}
+      KOSIRO_XRAY_CONTAINER: kosiro-xray
+    networks: [kosiro]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8443/health"]
+      interval: 5s
+      timeout: 4s
+      retries: 12
+      start_period: 15s
+
+  kosiro-xray:
+    image: ghcr.io/xtls/xray-core:latest
+    container_name: kosiro-xray
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    volumes:
+      - kosiro-data:/data
+    command: ["run", "-c", "/data/xray/config.json"]
+    depends_on:
+      kosiro-agent:
+        condition: service_healthy
+    ports:
+      - "443:443"
+      - "10086:10086"
+      - "8388:8388"
+      - "8444:8444"
+    networks: [kosiro]
+
+  kosiro-singbox:
+    image: ghcr.io/sagernet/sing-box:latest
+    container_name: kosiro-singbox
+    restart: unless-stopped
+    profiles: ["full"]
+    volumes:
+      - kosiro-data:/data
+    command: ["run", "-c", "/data/singbox/config.json"]
+    ports:
+      - "8445:8445"
+    networks: [kosiro]
+
+  kosiro-mtproto:
+    image: telegrammessenger/proxy:latest
+    container_name: kosiro-mtproto
+    restart: unless-stopped
+    profiles: ["mtproto"]
+    environment:
+      SECRET: ${MTPROTO_SECRET:-}
+      TAG: ${MTPROTO_SPONSOR:-}
+    ports:
+      - "${MTPROTO_PORT:-8446}:443"
+    networks: [kosiro]
+
+networks:
+  kosiro:
+
+volumes:
+  kosiro-data:
