@@ -4,7 +4,7 @@ set -euo pipefail
 
 # Публичный репозиторий (переопределите при форке):
 KOSIRO_GITHUB_OWNER="${KOSIRO_GITHUB_OWNER:-Alina-rix}"
-KOSIRO_GITHUB_REPO="${KOSIRO_GITHUB_REPO:-kosiro-panel}"
+KOSIRO_GITHUB_REPO="${KOSIRO_GITHUB_REPO:-Kosiro-panel}"
 KOSIRO_GITHUB_BRANCH="${KOSIRO_GITHUB_BRANCH:-main}"
 export KOSIRO_REPO_TARBALL="${KOSIRO_REPO_TARBALL:-https://github.com/${KOSIRO_GITHUB_OWNER}/${KOSIRO_GITHUB_REPO}/archive/refs/heads/${KOSIRO_GITHUB_BRANCH}.tar.gz}"
 

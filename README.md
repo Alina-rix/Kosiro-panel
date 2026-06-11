@@ -5,7 +5,7 @@ VPN-панель для Linux VPS: Go-агент, Docker Compose (Xray, sing-box
 ## Установка
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Alina-rix/kosiro-panel/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Alina-rix/Kosiro-panel/main/install.sh | bash
 ```
 
 После установки откройте **https://IP:8443/panel/** — веб-дашборд (логин: admin key из вывода установки).
