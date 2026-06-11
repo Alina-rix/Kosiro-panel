@@ -32,12 +32,16 @@ func NewRouter(store *db.Store, jwtSecret, dataDir string, collector *metrics.Co
 	r.Get("/health", h.Health)
 	r.Get("/sub/{token}", h.PublicSubscription)
 
-	if panelRoot := panelStaticDir(); panelRoot != "" {
+	panelRoot := panelStaticDir()
+	if panelRoot != "" {
 		fs := http.StripPrefix("/panel/", http.FileServer(http.Dir(panelRoot)))
 		r.Get("/panel", func(w http.ResponseWriter, r *http.Request) {
 			http.Redirect(w, r, "/panel/", http.StatusFound)
 		})
 		r.Handle("/panel/*", fs)
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			http.Redirect(w, r, "/panel/", http.StatusFound)
+		})
 	}
 
 	r.Route("/v1", func(r chi.Router) {

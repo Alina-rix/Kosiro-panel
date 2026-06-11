@@ -15,9 +15,11 @@ services:
       - kosiro-data:/data
       - /var/run/docker.sock:/var/run/docker.sock
       - ./:/compose:ro
+      - ../static/panel:/panel-static:ro
     environment:
       KOSIRO_HTTP_ADDR: ":8443"
       KOSIRO_DATA_DIR: /data
+      KOSIRO_PANEL_STATIC: /panel-static
       KOSIRO_ADMIN_TOKEN: ${KOSIRO_ADMIN_TOKEN}
       KOSIRO_JWT_SECRET: ${KOSIRO_JWT_SECRET:-}
       KOSIRO_INSTALL_SECRET: ${KOSIRO_INSTALL_SECRET:-}
