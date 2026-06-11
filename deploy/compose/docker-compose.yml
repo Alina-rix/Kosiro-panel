@@ -51,6 +51,9 @@ services:
         condition: service_healthy
     ports:
       - "443:443"
+      - "8440:8440"
+      - "8441:8441"
+      - "8442:8442"
       - "10086:10086"
       - "8388:8388"
       - "8444:8444"
@@ -66,6 +69,8 @@ services:
     command: ["run", "-c", "/data/singbox/config.json"]
     ports:
       - "8445:8445"
+      - "8447:8447"
+      - "8448:8448"
     networks: [kosiro]
 
   kosiro-mtproto:

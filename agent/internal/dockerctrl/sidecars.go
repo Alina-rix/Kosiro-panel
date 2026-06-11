@@ -28,7 +28,7 @@ func SyncSidecars(composeDir, dataDir string, protos []models.Protocol) error {
 			continue
 		}
 		switch p.Type {
-		case models.ProtoHysteria2:
+		case models.ProtoHysteria2, models.ProtoTUIC, models.ProtoAnyTLS:
 			needFull = true
 		case models.ProtoMTProto:
 			needMTProto = true

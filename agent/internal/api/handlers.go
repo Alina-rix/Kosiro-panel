@@ -182,15 +182,15 @@ func (h *Handler) InstallProtocol(w http.ResponseWriter, r *http.Request) {
 			p.Config["secret"] = strings.ReplaceAll(uuid.NewString(), "-", "")
 		}
 	}
+	if xray.UsesReality(p.Type) {
+		_ = xray.EnsureRealityConfig(p.Config)
+	}
 	p.Installed = true
 	if err := h.store.UpdateProtocol(p); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	users, _ := h.store.ListUsers()
 	switch p.Type {
-	case models.ProtoHysteria2:
-		_ = singbox.WriteHysteria2(h.dataDir, p, users)
 	case models.ProtoMTProto:
 		port := cfgInt(p.Config, "port", 8446)
 		sec := cfgStr(p.Config, "secret", "")
@@ -231,11 +231,13 @@ func (h *Handler) regenerateSidecars() error {
 		if !pr.Installed {
 			continue
 		}
-		if pr.Type == models.ProtoHysteria2 {
-			_ = singbox.WriteHysteria2(h.dataDir, pr, users)
+		if pr.Type == models.ProtoMTProto {
+			port := cfgInt(pr.Config, "port", 8446)
+			sec := cfgStr(pr.Config, "secret", "")
+			_ = mtproto.WriteEnvFile(h.dataDir, port, sec, cfgStr(pr.Config, "sponsor_channel", ""), cfgBool(pr.Config, "public_proxy", false))
 		}
 	}
-	return nil
+	return singbox.WriteConfig(h.dataDir, protos, users)
 }
 
 func (h *Handler) syncSidecarContainers() error {

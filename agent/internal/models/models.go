@@ -29,13 +29,18 @@ const (
 type ProtocolType string
 
 const (
-	ProtoVLESSReality ProtocolType = "vless_reality"
-	ProtoVMess        ProtocolType = "vmess"
-	ProtoShadowsocks  ProtocolType = "shadowsocks"
-	ProtoTrojan       ProtocolType = "trojan"
-	ProtoHysteria2    ProtocolType = "hysteria2"
-	ProtoMTProto      ProtocolType = "mtproto"
-	ProtoAmneziaWG    ProtocolType = "amneziawg"
+	ProtoVLESSReality        ProtocolType = "vless_reality"
+	ProtoVLESSXHTTP          ProtocolType = "vless_xhttp"
+	ProtoVLESSRealityXHTTP   ProtocolType = "vless_reality_xhttp"
+	ProtoVLESSRealityTLSMux  ProtocolType = "vless_reality_tls_mux"
+	ProtoVMess                 ProtocolType = "vmess"
+	ProtoShadowsocks           ProtocolType = "shadowsocks"
+	ProtoTrojan                ProtocolType = "trojan"
+	ProtoHysteria2             ProtocolType = "hysteria2"
+	ProtoTUIC                  ProtocolType = "tuic"
+	ProtoAnyTLS                ProtocolType = "anytls"
+	ProtoMTProto               ProtocolType = "mtproto"
+	ProtoAmneziaWG             ProtocolType = "amneziawg"
 )
 
 type SystemMetrics struct {

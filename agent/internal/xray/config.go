@@ -77,63 +77,26 @@ func BuildConfig(publicHost string, protos []models.Protocol, users []models.VPN
 		},
 	}
 
-	vlessProto := findProto(protos, models.ProtoVLESSReality)
-	if vlessProto != nil && vlessProto.Enabled && vlessProto.Installed {
-		port := getInt(vlessProto.Config, "port", 443)
-		sni := getStr(vlessProto.Config, "sni", "www.cloudflare.com")
-		dest := getStr(vlessProto.Config, "dest", "www.cloudflare.com:443")
-		pvk := getStr(vlessProto.Config, "private_key", "")
-		shortIDs := getStrSlice(vlessProto.Config, "short_ids")
-		if len(shortIDs) == 0 {
-			shortIDs = []string{""}
+	vlessPresets := []struct {
+		typ  models.ProtocolType
+		tag  string
+		opts vlessInboundOpts
+	}{
+		{models.ProtoVLESSReality, "vless_reality", vlessInboundOpts{network: "tcp", reality: true, vision: true, defaultPort: 443}},
+		{models.ProtoVLESSXHTTP, "vless_xhttp", vlessInboundOpts{network: "xhttp", defaultPort: 8440}},
+		{models.ProtoVLESSRealityXHTTP, "vless_reality_xhttp", vlessInboundOpts{network: "xhttp", reality: true, vision: true, defaultPort: 8441}},
+		{models.ProtoVLESSRealityTLSMux, "vless_reality_mux", vlessInboundOpts{network: "tcp", reality: true, vision: true, mux: true, defaultPort: 8442}},
+	}
+	for _, preset := range vlessPresets {
+		pr := findProto(protos, preset.typ)
+		if pr == nil || !pr.Enabled || !pr.Installed {
+			continue
 		}
-		if pvk == "" {
-			// Dev placeholder — replace via protocol settings for production.
-			pvk = "8Jsq_sYmlDkpQ0jcaY97A1KW_OV03x8zIyxSagN9g30"
+		preset.opts.tag = preset.tag
+		preset.opts.protoType = preset.typ
+		if ib := buildVLESSInbound(*pr, users, preset.opts); ib != nil {
+			inbounds = append(inbounds, ib)
 		}
-		clients := []map[string]interface{}{}
-		for _, u := range users {
-			if !hasProto(u, vlessProto.ID) {
-				continue
-			}
-			clients = append(clients, map[string]interface{}{
-				"id":    u.UUID,
-				"email": StatsEmail(u.UUID, models.ProtoVLESSReality),
-				"flow":  getStr(vlessProto.Config, "flow", "xtls-rprx-vision"),
-				"level": 0,
-			})
-		}
-		if len(clients) == 0 {
-			clients = append(clients, map[string]interface{}{"id": "00000000-0000-0000-0000-000000000001", "email": "placeholder@kosiro", "flow": "xtls-rprx-vision", "level": 0})
-		}
-		inbounds = append(inbounds, map[string]interface{}{
-			"listen":   "0.0.0.0",
-			"port":     port,
-			"protocol": "vless",
-			"settings": map[string]interface{}{
-				"clients": clients,
-				"decryption": "none",
-			},
-			"streamSettings": map[string]interface{}{
-				"network":  getStr(vlessProto.Config, "network", "tcp"),
-				"security": "reality",
-				"realitySettings": map[string]interface{}{
-					"show":        false,
-					"dest":        dest,
-					"xver":        0,
-					"serverNames": []string{sni},
-					"privateKey":  pvk,
-					"shortIds":    shortIDs,
-					"spiderX":     "/",
-					"fingerprint": getStr(vlessProto.Config, "fingerprint", "chrome"),
-				},
-			},
-			"sniffing": map[string]interface{}{
-				"enabled":      true,
-				"destOverride": []string{"http", "tls", "quic"},
-			},
-			"tag": "vless_reality",
-		})
 	}
 
 	vmessProto := findProto(protos, models.ProtoVMess)
@@ -319,4 +282,112 @@ func getStrSlice(m map[string]interface{}, k string) []string {
 	default:
 		return nil
 	}
+}
+
+type vlessInboundOpts struct {
+	tag         string
+	protoType   models.ProtocolType
+	network     string
+	reality     bool
+	vision      bool
+	mux         bool
+	defaultPort int
+}
+
+func buildVLESSInbound(pr models.Protocol, users []models.VPNUser, opts vlessInboundOpts) map[string]interface{} {
+	port := getInt(pr.Config, "port", opts.defaultPort)
+	network := opts.network
+	if network == "" {
+		network = getStr(pr.Config, "network", "tcp")
+	}
+
+	flow := ""
+	if opts.vision {
+		flow = getStr(pr.Config, "flow", "xtls-rprx-vision")
+	}
+
+	clients := []map[string]interface{}{}
+	for _, u := range users {
+		if !hasProto(u, pr.ID) {
+			continue
+		}
+		c := map[string]interface{}{
+			"id":    u.UUID,
+			"email": StatsEmail(u.UUID, opts.protoType),
+			"level": 0,
+		}
+		if flow != "" {
+			c["flow"] = flow
+		}
+		clients = append(clients, c)
+	}
+	if len(clients) == 0 {
+		ph := map[string]interface{}{"id": "00000000-0000-0000-0000-000000000001", "email": "placeholder@kosiro", "level": 0}
+		if flow != "" {
+			ph["flow"] = flow
+		}
+		clients = append(clients, ph)
+	}
+
+	stream := map[string]interface{}{"network": network}
+
+	if network == "xhttp" {
+		stream["xhttpSettings"] = map[string]interface{}{
+			"path": getStr(pr.Config, "xhttp_path", "/"),
+			"mode": getStr(pr.Config, "xhttp_mode", "auto"),
+			"host": getStr(pr.Config, "xhttp_host", ""),
+		}
+	}
+
+	if opts.reality {
+		sni := getStr(pr.Config, "sni", "www.cloudflare.com")
+		dest := getStr(pr.Config, "dest", sni+":443")
+		pvk := getStr(pr.Config, "private_key", "")
+		shortIDs := getStrSlice(pr.Config, "short_ids")
+		if len(shortIDs) == 0 {
+			if sid := getStr(pr.Config, "short_id", ""); sid != "" {
+				shortIDs = []string{sid}
+			} else {
+				shortIDs = []string{""}
+			}
+		}
+		stream["security"] = "reality"
+		stream["realitySettings"] = map[string]interface{}{
+			"show":        false,
+			"dest":        dest,
+			"xver":        0,
+			"serverNames": []string{sni},
+			"privateKey":  pvk,
+			"shortIds":    shortIDs,
+			"spiderX":     getStr(pr.Config, "spider_x", "/"),
+			"fingerprint": getStr(pr.Config, "fingerprint", "chrome"),
+		}
+	} else if sec := getStr(pr.Config, "tls_security", "none"); sec != "" && sec != "none" {
+		stream["security"] = sec
+		if sec == "tls" {
+			stream["tlsSettings"] = map[string]interface{}{
+				"serverName": getStr(pr.Config, "sni", publicHostFrom(pr)),
+			}
+		}
+	}
+
+	return map[string]interface{}{
+		"listen":   "0.0.0.0",
+		"port":     port,
+		"protocol": "vless",
+		"settings": map[string]interface{}{
+			"clients":    clients,
+			"decryption": "none",
+		},
+		"streamSettings": stream,
+		"sniffing": map[string]interface{}{
+			"enabled":      true,
+			"destOverride": []string{"http", "tls", "quic"},
+		},
+		"tag": opts.tag,
+	}
+}
+
+func publicHostFrom(pr models.Protocol) string {
+	return getStr(pr.Config, "sni", "localhost")
 }

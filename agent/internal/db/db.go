@@ -101,10 +101,15 @@ func (s *Store) seedDefaultProtocols() error {
 		cfg           map[string]interface{}
 	}{
 		{"proto_vless", string(models.ProtoVLESSReality), "VLESS + REALITY", map[string]interface{}{"port": 443, "sni": "www.cloudflare.com", "dest": "www.cloudflare.com:443", "flow": "xtls-rprx-vision"}},
+		{"proto_vless_xhttp", string(models.ProtoVLESSXHTTP), "VLESS + XHTTP", map[string]interface{}{"port": 8440, "xhttp_path": "/", "xhttp_mode": "auto", "tls_security": "none"}},
+		{"proto_vless_reality_xhttp", string(models.ProtoVLESSRealityXHTTP), "VLESS + REALITY + XHTTP", map[string]interface{}{"port": 8441, "sni": "www.cloudflare.com", "dest": "www.cloudflare.com:443", "xhttp_path": "/", "xhttp_mode": "auto", "flow": "xtls-rprx-vision"}},
+		{"proto_vless_reality_mux", string(models.ProtoVLESSRealityTLSMux), "VLESS + REALITY + Vision + Mux", map[string]interface{}{"port": 8442, "sni": "www.cloudflare.com", "dest": "www.cloudflare.com:443", "flow": "xtls-rprx-vision", "mux": true}},
 		{"proto_vmess", string(models.ProtoVMess), "VMess", map[string]interface{}{"port": 10086}},
 		{"proto_ss", string(models.ProtoShadowsocks), "Shadowsocks", map[string]interface{}{"port": 8388, "method": "2022-blake3-aes-256-gcm"}},
 		{"proto_trojan", string(models.ProtoTrojan), "Trojan", map[string]interface{}{"port": 8444}},
 		{"proto_hy2", string(models.ProtoHysteria2), "Hysteria2", map[string]interface{}{"port": 8445, "sni": ""}},
+		{"proto_tuic", string(models.ProtoTUIC), "TUIC", map[string]interface{}{"port": 8447, "sni": "", "congestion_control": "bbr"}},
+		{"proto_anytls", string(models.ProtoAnyTLS), "AnyTLS", map[string]interface{}{"port": 8448, "sni": ""}},
 		{"proto_mtproto", string(models.ProtoMTProto), "MTProto", map[string]interface{}{"port": 8446, "secret": "", "sponsor_channel": "", "public_proxy": false}},
 		{"proto_awg", string(models.ProtoAmneziaWG), "AmneziaWG 2", map[string]interface{}{"port": 51820, "preset": "balanced"}},
 	}

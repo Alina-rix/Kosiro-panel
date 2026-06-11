@@ -4,17 +4,96 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Kosiro Panel</title>
-  <style>
-    body { font-family: system-ui, sans-serif; background: #0c0b11; color: #f7f7f7; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; }
-    .card { background: #f7f7f7; color: #1a1a1a; padding: 2rem; border-radius: 24px; border: 1px solid #d0a6cc; max-width: 420px; }
-    a { color: #7c5cbf; }
-  </style>
+  <link rel="stylesheet" href="assets/style.css" />
 </head>
 <body>
-  <div class="card">
-    <h1>Kosiro Panel</h1>
-    <p>Веб-дашборд: положите сборку в <code>deploy/static/panel/</code> и откройте <code>/panel/</code>.</p>
-    <p>API: <a href="/health">/health</a></p>
+  <div id="app">
+    <section id="view-login" class="view hidden">
+      <div class="login-card">
+        <h1>Kosiro</h1>
+        <p class="muted">Вход по admin key с установки</p>
+        <input id="login-key" type="password" placeholder="A_R:SRV-…#……" autocomplete="off" />
+        <button id="btn-login" class="btn primary">Войти</button>
+        <p id="login-error" class="error hidden"></p>
+      </div>
+    </section>
+
+    <section id="view-app" class="view hidden">
+      <header class="topbar">
+        <div class="brand">Kosiro Panel</div>
+        <nav class="nav">
+          <button data-page="dashboard" class="nav-btn active">Дашборд</button>
+          <button data-page="users" class="nav-btn">Пользователи</button>
+          <button data-page="protocols" class="nav-btn">Протоколы</button>
+          <button data-page="settings" class="nav-btn">Настройки</button>
+        </nav>
+        <button id="btn-logout" class="btn ghost">Выход</button>
+      </header>
+
+      <main class="content">
+        <div id="page-dashboard" class="page">
+          <h2>Обзор сервера</h2>
+          <div id="metrics-grid" class="metrics-grid"></div>
+          <div class="card">
+            <h3>Нагрузка за сутки</h3>
+            <canvas id="chart-cpu" height="120"></canvas>
+          </div>
+        </div>
+
+        <div id="page-users" class="page hidden">
+          <div class="row-between">
+            <h2>Пользователи</h2>
+            <button id="btn-add-user" class="btn primary">+ Пользователь</button>
+          </div>
+          <div id="users-list" class="list"></div>
+        </div>
+
+        <div id="page-protocols" class="page hidden">
+          <div class="row-between">
+            <h2>Протоколы</h2>
+            <button id="btn-apply-protocols" class="btn primary">Применить все</button>
+          </div>
+          <p class="muted">Включите, установите и настройте пресеты. После изменений нажмите «Применить».</p>
+          <div id="protocols-grid" class="protocols-grid"></div>
+        </div>
+
+        <div id="page-settings" class="page hidden">
+          <h2>Настройки</h2>
+          <div class="card form-card">
+            <label>Публичный URL подписок</label>
+            <input id="set-base-url" type="url" placeholder="https://your-vps:8443" />
+            <label>Путь подписки</label>
+            <input id="set-sub-path" type="text" value="/sub/" />
+            <button id="btn-save-settings" class="btn primary">Сохранить</button>
+          </div>
+          <div class="card">
+            <h3>Xray</h3>
+            <label>Log level</label>
+            <select id="set-xray-log">
+              <option value="warning">warning</option>
+              <option value="info">info</option>
+              <option value="error">error</option>
+            </select>
+            <button id="btn-save-xray" class="btn">Сохранить Xray</button>
+          </div>
+        </div>
+      </main>
+    </section>
   </div>
+
+  <div id="modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-box">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button id="modal-cancel" class="btn ghost">Отмена</button>
+        <button id="modal-ok" class="btn primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <script src="assets/app.js"></script>
 </body>
 </html>
