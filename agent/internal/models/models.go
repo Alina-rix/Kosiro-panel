@@ -29,10 +29,11 @@ const (
 type ProtocolType string
 
 const (
-	ProtoVLESSReality        ProtocolType = "vless_reality"
-	ProtoVLESSXHTTP          ProtocolType = "vless_xhttp"
-	ProtoVLESSRealityXHTTP   ProtocolType = "vless_reality_xhttp"
-	ProtoVLESSRealityTLSMux  ProtocolType = "vless_reality_tls_mux"
+	ProtoVLESS                 ProtocolType = "vless"
+	ProtoVLESSReality          ProtocolType = "vless_reality" // legacy
+	ProtoVLESSXHTTP            ProtocolType = "vless_xhttp"   // legacy, hidden
+	ProtoVLESSRealityXHTTP     ProtocolType = "vless_reality_xhttp"
+	ProtoVLESSRealityTLSMux    ProtocolType = "vless_reality_tls_mux"
 	ProtoVMess                 ProtocolType = "vmess"
 	ProtoShadowsocks           ProtocolType = "shadowsocks"
 	ProtoTrojan                ProtocolType = "trojan"

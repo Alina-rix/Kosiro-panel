@@ -91,7 +91,57 @@ func (s *Store) Migrate() error {
 			return err
 		}
 	}
-	return s.seedDefaultProtocols()
+	if err := s.seedDefaultProtocols(); err != nil {
+		return err
+	}
+	return s.migrateProtocolLayout()
+}
+
+var hiddenProtocolIDs = map[string]struct{}{
+	"proto_vless_xhttp":         {},
+	"proto_vless_reality_xhttp": {},
+	"proto_vless_reality_mux":   {},
+	"proto_ss":                  {},
+}
+
+func (s *Store) IsProtocolVisible(id string) bool {
+	_, hidden := hiddenProtocolIDs[id]
+	return !hidden
+}
+
+func (s *Store) migrateProtocolLayout() error {
+	for id := range hiddenProtocolIDs {
+		_, _ = s.db.Exec(`UPDATE protocols SET enabled=0 WHERE id=?`, id)
+	}
+	var typ, cfgRaw string
+	err := s.db.QueryRow(`SELECT type, config_json FROM protocols WHERE id='proto_vless'`).Scan(&typ, &cfgRaw)
+	if err != nil {
+		return nil
+	}
+	var cfg map[string]interface{}
+	_ = json.Unmarshal([]byte(cfgRaw), &cfg)
+	if cfg == nil {
+		cfg = map[string]interface{}{}
+	}
+	changed := false
+	if typ != string(models.ProtoVLESS) {
+		typ = string(models.ProtoVLESS)
+		changed = true
+	}
+	if _, ok := cfg["transport"]; !ok {
+		cfg["transport"] = "tcp"
+		cfg["security"] = "reality"
+		changed = true
+	}
+	if _, ok := cfg["remark"]; !ok {
+		cfg["remark"] = "Kosiro-VLESS"
+		changed = true
+	}
+	if changed {
+		b, _ := json.Marshal(cfg)
+		_, _ = s.db.Exec(`UPDATE protocols SET type=?, display_name=?, config_json=? WHERE id='proto_vless'`, typ, "VLESS", string(b))
+	}
+	return nil
 }
 
 func (s *Store) seedDefaultProtocols() error {
@@ -100,16 +150,20 @@ func (s *Store) seedDefaultProtocols() error {
 		id, typ, name string
 		cfg           map[string]interface{}
 	}{
-		{"proto_vless", string(models.ProtoVLESSReality), "VLESS + REALITY", map[string]interface{}{"port": 443, "sni": "www.cloudflare.com", "dest": "www.cloudflare.com:443", "flow": "xtls-rprx-vision"}},
-		{"proto_vless_xhttp", string(models.ProtoVLESSXHTTP), "VLESS + XHTTP", map[string]interface{}{"port": 8440, "xhttp_path": "/", "xhttp_mode": "auto", "tls_security": "none"}},
-		{"proto_vless_reality_xhttp", string(models.ProtoVLESSRealityXHTTP), "VLESS + REALITY + XHTTP", map[string]interface{}{"port": 8441, "sni": "www.cloudflare.com", "dest": "www.cloudflare.com:443", "xhttp_path": "/", "xhttp_mode": "auto", "flow": "xtls-rprx-vision"}},
-		{"proto_vless_reality_mux", string(models.ProtoVLESSRealityTLSMux), "VLESS + REALITY + Vision + Mux", map[string]interface{}{"port": 8442, "sni": "www.cloudflare.com", "dest": "www.cloudflare.com:443", "flow": "xtls-rprx-vision", "mux": true}},
-		{"proto_vmess", string(models.ProtoVMess), "VMess", map[string]interface{}{"port": 10086}},
-		{"proto_ss", string(models.ProtoShadowsocks), "Shadowsocks", map[string]interface{}{"port": 8388, "method": "2022-blake3-aes-256-gcm"}},
-		{"proto_trojan", string(models.ProtoTrojan), "Trojan", map[string]interface{}{"port": 8444}},
-		{"proto_hy2", string(models.ProtoHysteria2), "Hysteria2", map[string]interface{}{"port": 8445, "sni": ""}},
-		{"proto_tuic", string(models.ProtoTUIC), "TUIC", map[string]interface{}{"port": 8447, "sni": "", "congestion_control": "bbr"}},
-		{"proto_anytls", string(models.ProtoAnyTLS), "AnyTLS", map[string]interface{}{"port": 8448, "sni": ""}},
+		{"proto_vless", string(models.ProtoVLESS), "VLESS", map[string]interface{}{
+			"port": 443, "remark": "Kosiro-VLESS", "transport": "tcp", "security": "reality",
+			"sni": "www.cloudflare.com", "dest": "www.cloudflare.com:443", "flow": "xtls-rprx-vision",
+			"fingerprint": "chrome", "mux": false, "xhttp_path": "/", "xhttp_mode": "auto",
+		}},
+		{"proto_trojan", string(models.ProtoTrojan), "Trojan", map[string]interface{}{
+			"port": 8444, "remark": "Kosiro-Trojan", "network": "tcp", "security": "tls", "sni": "",
+		}},
+		{"proto_vmess", string(models.ProtoVMess), "VMess", map[string]interface{}{
+			"port": 10086, "remark": "Kosiro-VMess", "network": "tcp", "security": "none",
+		}},
+		{"proto_hy2", string(models.ProtoHysteria2), "Hysteria2", map[string]interface{}{"port": 8445, "remark": "Kosiro-Hy2", "sni": ""}},
+		{"proto_tuic", string(models.ProtoTUIC), "TUIC", map[string]interface{}{"port": 8447, "remark": "Kosiro-TUIC", "sni": "", "congestion_control": "bbr"}},
+		{"proto_anytls", string(models.ProtoAnyTLS), "AnyTLS", map[string]interface{}{"port": 8448, "remark": "Kosiro-AnyTLS", "sni": ""}},
 		{"proto_mtproto", string(models.ProtoMTProto), "MTProto", map[string]interface{}{"port": 8446, "secret": "", "sponsor_channel": "", "public_proxy": false}},
 		{"proto_awg", string(models.ProtoAmneziaWG), "AmneziaWG 2", map[string]interface{}{"port": 51820, "preset": "balanced"}},
 	}
@@ -217,6 +271,9 @@ func (s *Store) ListProtocols() ([]models.Protocol, error) {
 		p.Config = map[string]interface{}{}
 		_ = json.Unmarshal([]byte(cfgJSON), &p.Config)
 		p.UpdatedAt, _ = time.Parse(time.RFC3339, updated)
+		if !s.IsProtocolVisible(p.ID) {
+			continue
+		}
 		list = append(list, p)
 	}
 	return list, rows.Err()

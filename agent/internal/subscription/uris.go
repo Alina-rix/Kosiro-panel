@@ -12,25 +12,23 @@ import (
 // BuildVLESSURI builds a vless:// link from protocol preset config.
 func BuildVLESSURI(host string, port int, userUUID string, pr models.Protocol) string {
 	cfg := pr.Config
-	network := "tcp"
-	reality := false
-	flow := ""
-	mux := false
+	network := strFromCfg(cfg, "transport", "tcp")
+	security := strFromCfg(cfg, "security", "none")
+	flow := strFromCfg(cfg, "flow", "")
+	mux := cfgBool(cfg, "mux", false)
+	reality := security == "reality"
 
 	switch pr.Type {
+	case models.ProtoVLESSReality, models.ProtoVLESSRealityXHTTP, models.ProtoVLESSRealityTLSMux:
+		reality = true
+		if flow == "" {
+			flow = "xtls-rprx-vision"
+		}
+		if pr.Type == models.ProtoVLESSRealityTLSMux {
+			mux = true
+		}
 	case models.ProtoVLESSXHTTP:
 		network = "xhttp"
-	case models.ProtoVLESSRealityXHTTP:
-		network = "xhttp"
-		reality = true
-		flow = strFromCfg(cfg, "flow", "xtls-rprx-vision")
-	case models.ProtoVLESSRealityTLSMux:
-		reality = true
-		flow = strFromCfg(cfg, "flow", "xtls-rprx-vision")
-		mux = cfgBool(cfg, "mux", true)
-	case models.ProtoVLESSReality:
-		reality = true
-		flow = strFromCfg(cfg, "flow", "xtls-rprx-vision")
 	}
 
 	q := url.Values{}
@@ -60,14 +58,14 @@ func BuildVLESSURI(host string, port int, userUUID string, pr models.Protocol) s
 		q.Set("fp", strFromCfg(cfg, "fingerprint", "chrome"))
 		q.Set("pbk", pbk)
 		q.Set("sid", sid)
-	} else if sec := strFromCfg(cfg, "tls_security", "none"); sec != "" && sec != "none" {
+	} else if sec := strFromCfg(cfg, "security", strFromCfg(cfg, "tls_security", "none")); sec != "" && sec != "none" && sec != "reality" {
 		q.Set("security", sec)
 		if sni := strFromCfg(cfg, "sni", host); sni != "" {
 			q.Set("sni", sni)
 		}
 	}
 
-	label := url.QueryEscape(pr.DisplayName)
+	label := url.QueryEscape(strFromCfg(cfg, "remark", pr.DisplayName))
 	if label == "" {
 		label = "Kosiro-VLESS"
 	}
@@ -172,7 +170,7 @@ func CollectURIsForUser(publicHost string, protos []models.Protocol, u models.VP
 			continue
 		}
 		switch pr.Type {
-		case models.ProtoVLESSReality, models.ProtoVLESSXHTTP, models.ProtoVLESSRealityXHTTP, models.ProtoVLESSRealityTLSMux:
+		case models.ProtoVLESS, models.ProtoVLESSReality, models.ProtoVLESSXHTTP, models.ProtoVLESSRealityXHTTP, models.ProtoVLESSRealityTLSMux:
 			port := intFromCfg(pr.Config, "port", 443)
 			out = append(out, BuildVLESSURI(publicHost, port, u.UUID, pr))
 		case models.ProtoVMess:

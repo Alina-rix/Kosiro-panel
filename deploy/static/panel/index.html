@@ -29,6 +29,10 @@
         </nav>
         <button id="btn-logout" class="btn ghost">Выход</button>
       </header>
+      <div id="conn-banner" class="conn-banner hidden">
+        <span>Нет связи с агентом (перезапуск или сеть).</span>
+        <button id="btn-reconnect" class="btn small">Повторить</button>
+      </div>
 
       <main class="content">
         <div id="page-dashboard" class="page">
@@ -53,8 +57,8 @@
             <h2>Протоколы</h2>
             <button id="btn-apply-protocols" class="btn primary">Применить все</button>
           </div>
-          <p class="muted">Включите, установите и настройте пресеты. После изменений нажмите «Применить».</p>
-          <div id="protocols-grid" class="protocols-grid"></div>
+          <p class="muted">Включите протокол, настройте параметры и нажмите «Применить».</p>
+          <div id="protocols-mount"></div>
         </div>
 
         <div id="page-settings" class="page hidden">

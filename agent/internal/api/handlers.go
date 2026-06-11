@@ -182,7 +182,7 @@ func (h *Handler) InstallProtocol(w http.ResponseWriter, r *http.Request) {
 			p.Config["secret"] = strings.ReplaceAll(uuid.NewString(), "-", "")
 		}
 	}
-	if xray.UsesReality(p.Type) {
+	if xray.UsesReality(p.Type) || (p.Type == models.ProtoVLESS && cfgStr(p.Config, "security", "") == "reality") {
 		_ = xray.EnsureRealityConfig(p.Config)
 	}
 	p.Installed = true

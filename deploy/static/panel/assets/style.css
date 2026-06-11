@@ -62,6 +62,19 @@ body {
   flex-wrap: wrap;
 }
 .brand { font-weight: 700; color: var(--accent); margin-right: auto; }
+
+.conn-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: #3a2438;
+  border-bottom: 1px solid var(--warn);
+  color: var(--warn);
+  font-size: 0.9rem;
+}
+
 .nav { display: flex; gap: 6px; flex-wrap: wrap; }
 .nav-btn {
   background: transparent;
@@ -180,6 +193,40 @@ body {
 }
 .badge.on { background: #1e3d34; color: var(--ok); }
 .proto-actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+
+.proto-family { margin-bottom: 36px; }
+.proto-family-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 14px;
+  color: var(--accent);
+  letter-spacing: 0.02em;
+}
+.proto-family.last { margin-top: 48px; padding-top: 8px; border-top: 1px solid #2a2438; }
+.proto-row { display: flex; flex-direction: column; gap: 10px; }
+.proto-card.soon { opacity: 0.72; }
+
+.form-grid { display: grid; gap: 10px; }
+.form-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #2a2438;
+}
+.form-section h4 { margin: 0 0 8px; font-size: 0.9rem; color: var(--muted); }
+.seg-group { display: flex; gap: 6px; flex-wrap: wrap; margin: 6px 0 10px; }
+.seg-btn {
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid #3a3450;
+  background: #12101a;
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+.seg-btn.active { border-color: var(--accent); background: #2a2438; color: var(--accent); }
+.badge.soon { background: #3a2a44; color: var(--warn); }
+
+.modal-box.wide { width: min(640px, 100%); }
 
 .modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; padding: 16px; }
 .modal-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }

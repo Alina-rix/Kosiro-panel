@@ -77,24 +77,15 @@ func BuildConfig(publicHost string, protos []models.Protocol, users []models.VPN
 		},
 	}
 
-	vlessPresets := []struct {
-		typ  models.ProtocolType
-		tag  string
-		opts vlessInboundOpts
-	}{
-		{models.ProtoVLESSReality, "vless_reality", vlessInboundOpts{network: "tcp", reality: true, vision: true, defaultPort: 443}},
-		{models.ProtoVLESSXHTTP, "vless_xhttp", vlessInboundOpts{network: "xhttp", defaultPort: 8440}},
-		{models.ProtoVLESSRealityXHTTP, "vless_reality_xhttp", vlessInboundOpts{network: "xhttp", reality: true, vision: true, defaultPort: 8441}},
-		{models.ProtoVLESSRealityTLSMux, "vless_reality_mux", vlessInboundOpts{network: "tcp", reality: true, vision: true, mux: true, defaultPort: 8442}},
+	vlessProto := findProtoByID(protos, "proto_vless")
+	if vlessProto == nil {
+		vlessProto = findProto(protos, models.ProtoVLESS)
 	}
-	for _, preset := range vlessPresets {
-		pr := findProto(protos, preset.typ)
-		if pr == nil || !pr.Enabled || !pr.Installed {
-			continue
-		}
-		preset.opts.tag = preset.tag
-		preset.opts.protoType = preset.typ
-		if ib := buildVLESSInbound(*pr, users, preset.opts); ib != nil {
+	if vlessProto == nil {
+		vlessProto = findProto(protos, models.ProtoVLESSReality)
+	}
+	if vlessProto != nil && vlessProto.Enabled && vlessProto.Installed {
+		if ib := buildVLESSFromProtocol(*vlessProto, users); ib != nil {
 			inbounds = append(inbounds, ib)
 		}
 	}
@@ -127,7 +118,7 @@ func BuildConfig(publicHost string, protos []models.Protocol, users []models.VPN
 			},
 			"streamSettings": map[string]interface{}{
 				"network":  getStr(vmessProto.Config, "network", "tcp"),
-				"security": getStr(vmessProto.Config, "tls_security", "none"),
+				"security": getStr(vmessProto.Config, "security", getStr(vmessProto.Config, "tls_security", "none")),
 			},
 			"tag": "vmess_in",
 		})
@@ -196,7 +187,7 @@ func BuildConfig(publicHost string, protos []models.Protocol, users []models.VPN
 			},
 			"streamSettings": map[string]interface{}{
 				"network":  "tcp",
-				"security": getStr(trojanProto.Config, "tls_security", "none"),
+				"security": getStr(trojanProto.Config, "security", getStr(trojanProto.Config, "tls_security", "tls")),
 			},
 			"tag": "trojan_in",
 		})
@@ -218,6 +209,15 @@ func WriteConfigFile(dataDir string, cfg map[string]interface{}) error {
 		return err
 	}
 	return os.WriteFile(filepath.Join(dir, "config.json"), b, 0o600)
+}
+
+func findProtoByID(protos []models.Protocol, id string) *models.Protocol {
+	for i := range protos {
+		if protos[i].ID == id {
+			return &protos[i]
+		}
+	}
+	return nil
 }
 
 func findProto(protos []models.Protocol, t models.ProtocolType) *models.Protocol {
@@ -294,6 +294,69 @@ type vlessInboundOpts struct {
 	defaultPort int
 }
 
+func buildVLESSFromProtocol(pr models.Protocol, users []models.VPNUser) map[string]interface{} {
+	cfg := pr.Config
+	transport := getStr(cfg, "transport", "tcp")
+	security := getStr(cfg, "security", "none")
+	switch pr.Type {
+	case models.ProtoVLESSReality, models.ProtoVLESSRealityXHTTP, models.ProtoVLESSRealityTLSMux:
+		if security == "none" {
+			security = "reality"
+		}
+	case models.ProtoVLESSXHTTP:
+		transport = "xhttp"
+	}
+	flow := getStr(cfg, "flow", "")
+	if flow == "" && transport == "tcp" && (security == "reality" || security == "tls") {
+		flow = "xtls-rprx-vision"
+	}
+	opts := vlessInboundOpts{
+		tag:         "vless_in",
+		protoType:   models.ProtoVLESS,
+		network:     transport,
+		reality:     security == "reality",
+		vision:      flow != "",
+		mux:         getBool(cfg, "mux", false),
+		defaultPort: 443,
+	}
+	ib := buildVLESSInbound(pr, users, opts)
+	if ib == nil {
+		return nil
+	}
+	if security == "tls" && !opts.reality {
+		stream := ib["streamSettings"].(map[string]interface{})
+		stream["security"] = "tls"
+		stream["tlsSettings"] = map[string]interface{}{
+			"serverName": getStr(cfg, "sni", ""),
+		}
+	}
+	if transport == "ws" {
+		stream := ib["streamSettings"].(map[string]interface{})
+		stream["wsSettings"] = map[string]interface{}{
+			"path": getStr(cfg, "ws_path", "/"),
+			"headers": map[string]interface{}{
+				"Host": getStr(cfg, "ws_host", ""),
+			},
+		}
+	}
+	if transport == "grpc" {
+		stream := ib["streamSettings"].(map[string]interface{})
+		stream["grpcSettings"] = map[string]interface{}{
+			"serviceName": getStr(cfg, "grpc_service_name", ""),
+		}
+	}
+	return ib
+}
+
+func getBool(m map[string]interface{}, k string, def bool) bool {
+	if v, ok := m[k]; ok {
+		if b, ok := v.(bool); ok {
+			return b
+		}
+	}
+	return def
+}
+
 func buildVLESSInbound(pr models.Protocol, users []models.VPNUser, opts vlessInboundOpts) map[string]interface{} {
 	port := getInt(pr.Config, "port", opts.defaultPort)
 	network := opts.network
@@ -362,11 +425,14 @@ func buildVLESSInbound(pr models.Protocol, users []models.VPNUser, opts vlessInb
 			"spiderX":     getStr(pr.Config, "spider_x", "/"),
 			"fingerprint": getStr(pr.Config, "fingerprint", "chrome"),
 		}
-	} else if sec := getStr(pr.Config, "tls_security", "none"); sec != "" && sec != "none" {
-		stream["security"] = sec
-		if sec == "tls" {
-			stream["tlsSettings"] = map[string]interface{}{
-				"serverName": getStr(pr.Config, "sni", publicHostFrom(pr)),
+	} else {
+		sec := getStr(pr.Config, "security", getStr(pr.Config, "tls_security", "none"))
+		if sec != "" && sec != "none" && sec != "reality" {
+			stream["security"] = sec
+			if sec == "tls" {
+				stream["tlsSettings"] = map[string]interface{}{
+					"serverName": getStr(pr.Config, "sni", publicHostFrom(pr)),
+				}
 			}
 		}
 	}
